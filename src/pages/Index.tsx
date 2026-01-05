@@ -1,0 +1,166 @@
+import { Link } from "react-router-dom";
+import { ArrowRight, Truck, Shield, Tag } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+import CategoryCard from "@/components/home/CategoryCard";
+import OfferCard from "@/components/home/OfferCard";
+import { categories, offers } from "@/data/products";
+
+const Index = () => {
+  return (
+    <div className="min-h-screen flex flex-col bg-background">
+      <Header />
+
+      <main className="flex-1">
+        {/* Hero Section */}
+        <section className="hero-gradient py-12 md:py-20">
+          <div className="container-custom">
+            <div className="max-w-2xl animate-fade-in">
+              <span className="inline-block px-3 py-1 bg-accent text-accent-foreground text-sm font-medium rounded-full mb-4">
+                🛒 Your Neighborhood Store
+              </span>
+              <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-4 leading-tight">
+                Fresh Qualitied Products at
+                <span className="text-primary"> Affordable Prices</span>
+              </h1>
+              <p className="text-muted-foreground text-lg mb-8 max-w-xl">
+                From daily essentials to kitchen needs - find everything your home needs at VEL SUPER MARKET. 
+                Trusted by families in our community.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <Link to="/products">
+                  <Button size="lg" className="shadow-card">
+                    Shop Now
+                    <ArrowRight className="h-5 w-5" />
+                  </Button>
+                </Link>
+                <Link to="/products?category=daily-essentials">
+                  <Button variant="outline" size="lg">
+                    Daily Essentials
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features Strip */}
+        <section className="border-b border-border bg-card py-4">
+          <div className="container-custom">
+            <div className="flex flex-wrap justify-center md:justify-between gap-6 text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Truck className="h-5 w-5 text-primary" />
+                <span>Free Delivery Above ₹500</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Shield className="h-5 w-5 text-primary" />
+                <span>Quality Guaranteed</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Tag className="h-5 w-5 text-primary" />
+                <span>Best Prices Everyday</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Categories Section */}
+        <section className="py-12 md:py-16">
+          <div className="container-custom">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+                  Shop by Category
+                </h2>
+                <p className="text-muted-foreground">
+                  Browse our carefully organized product categories
+                </p>
+              </div>
+              <Link to="/products" className="hidden md:block">
+                <Button variant="ghost">
+                  View All
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {categories.map((category, index) => (
+                <div
+                  key={category.id}
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <CategoryCard category={category} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Offers Section */}
+        <section className="py-12 md:py-16 bg-accent/30">
+          <div className="container-custom">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+                  🔥 Today's Special Offers
+                </h2>
+                <p className="text-muted-foreground">
+                  Grab these deals before they're gone!
+                </p>
+              </div>
+              <Link to="/products" className="hidden md:block">
+                <Button variant="ghost">
+                  All Products
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {offers.map((product, index) => (
+                <div
+                  key={product.id}
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <OfferCard product={product} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="py-12 md:py-16">
+          <div className="container-custom">
+            <div className="bg-primary rounded-2xl p-8 md:p-12 text-center shadow-hover">
+              <h2 className="text-2xl md:text-3xl font-bold text-primary-foreground mb-4">
+                Ready to Shop?
+              </h2>
+              <p className="text-primary-foreground/80 mb-6 max-w-md mx-auto">
+                Browse our complete collection and get everything delivered to your doorstep.
+              </p>
+              <Link to="/products">
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
+                >
+                  Explore All Products
+                  <ArrowRight className="h-5 w-5" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
+    </div>
+  );
+};
+
+export default Index;
