@@ -35,12 +35,28 @@ const Index = () => {
                     <ArrowRight className="h-5 w-5" />
                   </Button>
                 </Link>
-                <Link to="/products?category=daily-essentials">
+                <Link to="/products?category=grocery-staples">
                   <Button variant="outline" size="lg">
-                    Daily Essentials
+                    Grocery Staples
                   </Button>
                 </Link>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* About Section */}
+        <section className="py-8 md:py-12">
+          <div className="container-custom">
+            <div className="max-w-3xl">
+              <h2 className="text-xl md:text-2xl font-bold text-foreground mb-3">
+                About VEL SUPER MARKET
+              </h2>
+              <p className="text-muted-foreground">
+                VEL SUPER MARKET is a packaged-goods departmental store offering daily essentials,
+                household items, and personal care products. Our store provides a simple and
+                convenient online ordering experience along with in-store shopping.
+              </p>
             </div>
           </div>
         </section>

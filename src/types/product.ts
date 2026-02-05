@@ -8,6 +8,8 @@ export interface Product {
   unit: string;
   inStock: boolean;
   isOffer?: boolean;
+  brand?: string;
+  stock?: number;
 }
 
 export interface CartItem extends Product {
