@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Truck, Shield, Tag } from "lucide-react";
+import { ArrowRight, Truck, Shield, Tag, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -49,14 +49,23 @@ const Index = () => {
         <section className="py-8 md:py-12">
           <div className="container-custom">
             <div className="max-w-3xl">
-              <h2 className="text-xl md:text-2xl font-bold text-foreground mb-3">
-                About VEL SUPER MARKET
-              </h2>
-              <p className="text-muted-foreground">
-                VEL SUPER MARKET is a packaged-goods departmental store offering daily essentials,
-                household items, and personal care products. Our store provides a simple and
-                convenient online ordering experience along with in-store shopping.
-              </p>
+              <div className="rounded-2xl border border-border/60 bg-card/70 p-6 md:p-8 shadow-card">
+                <div className="flex items-start gap-3">
+                  <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-accent text-primary">
+                    <Store className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold text-foreground mb-2">
+                      About VEL SUPER MARKET
+                    </h2>
+                    <p className="text-muted-foreground leading-relaxed">
+                      VEL SUPER MARKET is a packaged-goods departmental store offering daily essentials,
+                      household items, and personal care products. Our store provides a simple and
+                      convenient online ordering experience along with in-store shopping.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
