@@ -4,12 +4,13 @@ import Footer from "@/components/layout/Footer";
 import CartItemComponent from "@/components/cart/CartItem";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
+import { DELIVERY_CHARGE, FREE_DELIVERY_THRESHOLD } from "@/config/commerce";
 import { ShoppingBag, ArrowRight, Trash2 } from "lucide-react";
 
 const Cart = () => {
   const { items, totalItems, totalPrice, clearCart } = useCart();
 
-  const deliveryCharge = totalPrice >= 500 ? 0 : 30;
+  const deliveryCharge = totalPrice >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE;
   const finalTotal = totalPrice + deliveryCharge;
 
   return (
@@ -19,7 +20,7 @@ const Cart = () => {
       <main className="flex-1 py-8">
         <div className="container-custom">
           {/* Page Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1">
                 Shopping Cart
@@ -29,7 +30,7 @@ const Cart = () => {
               </p>
             </div>
             {items.length > 0 && (
-              <Button variant="ghost" className="text-destructive" onClick={clearCart}>
+              <Button variant="ghost" className="text-destructive w-full sm:w-auto" onClick={clearCart}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Clear Cart
               </Button>
@@ -67,7 +68,7 @@ const Cart = () => {
 
               {/* Order Summary */}
               <div className="lg:col-span-1">
-                <div className="bg-card rounded-xl p-6 shadow-card border border-border/50 sticky top-24">
+                <div className="bg-card rounded-xl p-6 shadow-card border border-border/50 lg:sticky lg:top-24">
                   <h3 className="font-bold text-lg text-foreground mb-4">
                     Order Summary
                   </h3>
@@ -89,7 +90,7 @@ const Cart = () => {
                     </div>
                     {deliveryCharge > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        Add ₹{500 - totalPrice} more for free delivery
+                        Add ₹{FREE_DELIVERY_THRESHOLD - totalPrice} more for free delivery
                       </p>
                     )}
                   </div>

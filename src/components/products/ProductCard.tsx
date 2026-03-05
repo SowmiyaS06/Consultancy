@@ -1,8 +1,11 @@
+import { useEffect, useMemo, useState } from "react";
 import { Product } from "@/types/product";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import { ShoppingCart, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { getCategoryMeta } from "@/lib/categoryMeta";
+import { resolveProductImage } from "@/lib/productImage";
 
 interface ProductCardProps {
   product: Product;
@@ -11,20 +14,27 @@ interface ProductCardProps {
 const ProductCard = ({ product }: ProductCardProps) => {
   const { addToCart, items } = useCart();
   const isInCart = items.some((item) => item.id === product.id);
+  const isOutOfStock = !product.inStock;
   const discount = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
 
-  const getCategoryEmoji = (category: string) => {
-    const emojis: Record<string, string> = {
-      "daily-essentials": "🍚",
-      "snacks-treats": "🍪",
-      "personal-home": "🧴",
-      "school-kids": "🎨",
-      "kitchen-needs": "🍳",
-      "fresh-items": "🧄",
-    };
-    return emojis[category] || "📦";
+  const categoryEmoji = getCategoryMeta(product.category).icon;
+  const fallbackImage = useMemo(() => resolveProductImage(product.name), [product.name]);
+  const [currentImage, setCurrentImage] = useState(product.image || fallbackImage);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setCurrentImage(product.image || fallbackImage);
+    setImageFailed(false);
+  }, [product.image, fallbackImage]);
+
+  const handleImageError = () => {
+    if (currentImage !== fallbackImage) {
+      setCurrentImage(fallbackImage);
+      return;
+    }
+    setImageFailed(true);
   };
 
   return (
@@ -35,12 +45,28 @@ const ProductCard = ({ product }: ProductCardProps) => {
           {discount}% OFF
         </Badge>
       )}
+      {isOutOfStock && (
+        <Badge className="absolute top-3 right-3 z-10 bg-secondary text-secondary-foreground font-semibold">
+          Out of Stock
+        </Badge>
+      )}
 
       {/* Product Image */}
       <div className="relative h-36 bg-accent/30 flex items-center justify-center overflow-hidden">
-        <div className="text-5xl group-hover:scale-110 transition-transform duration-300">
-          {getCategoryEmoji(product.category)}
-        </div>
+        {!imageFailed ? (
+          <img
+            src={currentImage}
+            alt={product.name}
+            loading="lazy"
+            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+            referrerPolicy="no-referrer"
+            onError={handleImageError}
+          />
+        ) : (
+          <div className="text-5xl group-hover:scale-110 transition-transform duration-300">
+            {categoryEmoji}
+          </div>
+        )}
       </div>
 
       {/* Product Info */}
@@ -60,12 +86,19 @@ const ProductCard = ({ product }: ProductCardProps) => {
         </div>
 
         <Button
-          variant={isInCart ? "success" : "cart"}
+          variant={isOutOfStock ? "outline" : isInCart ? "success" : "cart"}
           size="sm"
           className="w-full"
-          onClick={() => addToCart(product)}
+          onClick={() => {
+            if (!isOutOfStock) {
+              addToCart(product);
+            }
+          }}
+          disabled={isOutOfStock}
         >
-          {isInCart ? (
+          {isOutOfStock ? (
+            <>Out of Stock</>
+          ) : isInCart ? (
             <>
               <Check className="h-4 w-4" />
               Added

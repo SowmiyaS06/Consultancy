@@ -1,17 +1,45 @@
 import { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import ProductCard from "@/components/products/ProductCard";
-import { products, categories } from "@/data/products";
+import { categories as fallbackCategories } from "@/data/products";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Filter } from "lucide-react";
+import { storeApi, type StoreProduct } from "@/lib/storeApi";
+import { resolveProductImage } from "@/lib/productImage";
+import { buildCategoriesFromProducts } from "@/lib/categoryMeta";
+import type { Product } from "@/types/product";
 
 const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const productsQuery = useQuery({
+    queryKey: ["store-products"],
+    queryFn: () => storeApi.listProducts(),
+  });
+
+  const mapProduct = (product: StoreProduct): Product => ({
+    id: product._id,
+    name: product.name,
+    price: product.price,
+    originalPrice: product.originalPrice,
+    category: product.category || "uncategorized",
+    image: resolveProductImage(product.name, product.image),
+    unit: product.unit || "unit",
+    inStock: product.inStock ?? (product.stock ?? 0) > 0,
+    isOffer: Boolean(product.isOffer),
+  });
+
+  const products = (productsQuery.data?.products || []).map(mapProduct);
+
+  const categories = useMemo(() => {
+    const dynamic = buildCategoriesFromProducts(products, fallbackCategories);
+    return dynamic.length > 0 ? dynamic : fallbackCategories;
+  }, [products]);
 
   const selectedCategory = searchParams.get("category") || "all";
 
@@ -24,7 +52,7 @@ const Products = () => {
         product.category.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [selectedCategory, searchQuery]);
+  }, [products, selectedCategory, searchQuery]);
 
   const handleCategoryChange = (categoryId: string) => {
     if (categoryId === "all") {
@@ -71,7 +99,7 @@ const Products = () => {
             </Button>
           </div>
 
-          <div className="flex gap-8">
+          <div className="flex flex-col md:flex-row gap-6 md:gap-8">
             {/* Category Filters - Desktop */}
             <aside
               className={`${
@@ -111,7 +139,15 @@ const Products = () => {
 
             {/* Products Grid */}
             <div className="flex-1">
-              {filteredProducts.length === 0 ? (
+              {productsQuery.isLoading ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  Loading products...
+                </div>
+              ) : productsQuery.error ? (
+                <div className="text-center py-12 text-destructive">
+                  Failed to load products.
+                </div>
+              ) : filteredProducts.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-2xl mb-2">🔍</p>
                   <p className="text-muted-foreground">
@@ -120,12 +156,8 @@ const Products = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {filteredProducts.map((product, index) => (
-                    <div
-                      key={product.id}
-                      className="animate-fade-in"
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
+                  {filteredProducts.map((product) => (
+                    <div key={product.id} className="animate-fade-in">
                       <ProductCard product={product} />
                     </div>
                   ))}

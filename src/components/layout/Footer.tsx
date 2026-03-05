@@ -32,10 +32,12 @@ DHARAPURAM,<br />
 TIRUPUR (DT) - 638656.<br />
                 </span>
               </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Phone className="h-5 w-5 shrink-0" />
-                <span className="text-primary-foreground/90"> +91-9360007775,</span>
-                <span className="text-primary-foreground/90">+91-96595 64440.</span>
+              <div className="flex items-start gap-3 text-sm">
+                <Phone className="h-5 w-5 shrink-0 mt-0.5" />
+                <div className="text-primary-foreground/90">
+                  <p>+91-9360007775</p>
+                  <p>+91-96595 64440</p>
+                </div>
               </div>
             </div>
           </div>

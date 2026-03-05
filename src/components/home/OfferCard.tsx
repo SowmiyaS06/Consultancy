@@ -10,6 +10,7 @@ interface OfferCardProps {
 
 const OfferCard = ({ product }: OfferCardProps) => {
   const { addToCart } = useCart();
+  const isOutOfStock = !product.inStock;
   const discount = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
@@ -20,6 +21,11 @@ const OfferCard = ({ product }: OfferCardProps) => {
       <Badge className="absolute top-3 left-3 z-10 bg-destructive text-destructive-foreground font-bold">
         {discount}% OFF
       </Badge>
+      {isOutOfStock && (
+        <Badge className="absolute top-3 right-3 z-10 bg-secondary text-secondary-foreground font-semibold">
+          Out of Stock
+        </Badge>
+      )}
 
       {/* Product Image */}
       <div className="relative h-40 bg-accent/30 flex items-center justify-center overflow-hidden">
@@ -48,13 +54,24 @@ const OfferCard = ({ product }: OfferCardProps) => {
         </div>
 
         <Button
-          variant="cart"
+          variant={isOutOfStock ? "outline" : "cart"}
           size="sm"
           className="w-full"
-          onClick={() => addToCart(product)}
+          onClick={() => {
+            if (!isOutOfStock) {
+              addToCart(product);
+            }
+          }}
+          disabled={isOutOfStock}
         >
-          <ShoppingCart className="h-4 w-4" />
-          Add to Cart
+          {isOutOfStock ? (
+            <>Out of Stock</>
+          ) : (
+            <>
+              <ShoppingCart className="h-4 w-4" />
+              Add to Cart
+            </>
+          )}
         </Button>
       </div>
     </div>

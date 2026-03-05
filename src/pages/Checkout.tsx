@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -7,25 +7,45 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { storeApi } from "@/lib/storeApi";
+import { DELIVERY_CHARGE, FREE_DELIVERY_THRESHOLD } from "@/config/commerce";
+import { downloadReceiptPdf } from "@/lib/receiptPdf";
 import { CheckCircle2 } from "lucide-react";
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { items, totalPrice, clearCart } = useCart();
+  const { isAuthenticated, token } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
 
-  const deliveryCharge = totalPrice >= 500 ? 0 : 30;
+  const deliveryCharge = totalPrice >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE;
   const finalTotal = totalPrice + deliveryCharge;
 
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
     address: "",
+    pincode: "",
     notes: "",
   });
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/login", { state: { from: "/checkout" }, replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    if (isAuthenticated && items.length === 0) {
+      navigate("/cart", { replace: true });
+    }
+  }, [isAuthenticated, items.length, navigate]);
+
+  const isMongoObjectId = (value: string) => /^[a-f0-9]{24}$/i.test(value);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -37,10 +57,19 @@ const Checkout = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.phone || !formData.address) {
+    if (!formData.name || !formData.phone || !formData.address || !formData.pincode) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.pincode.trim().length !== 6) {
+      toast({
+        title: "Invalid Pincode",
+        description: "Please enter a valid 6-digit pincode.",
         variant: "destructive",
       });
       return;
@@ -55,20 +84,88 @@ const Checkout = () => {
       return;
     }
 
+    if (!token) {
+      toast({
+        title: "Login Required",
+        description: "Please login to place your order.",
+        variant: "destructive",
+      });
+      navigate("/login", { state: { from: "/checkout" }, replace: true });
+      return;
+    }
+
+    if (items.some((item) => !isMongoObjectId(item.id))) {
+      toast({
+        title: "Cart Needs Refresh",
+        description: "Please clear cart and add products again before checkout.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
-    // Simulate order placement
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const cartSnapshot = [...items];
+      const { order } = await storeApi.createOrder(token, {
+        items: items.map((item) => ({ productId: item.id, quantity: item.quantity })),
+        paymentMethod: "cod",
+        name: formData.name,
+        phone: formData.phone,
+        address: formData.address,
+        pincode: formData.pincode,
+        notes: formData.notes,
+      });
 
-    setOrderPlaced(true);
-    clearCart();
+      const productNameMap = new Map(cartSnapshot.map((item) => [item.id, item.name]));
+      const subtotal = order.subtotal ?? order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const resolvedDeliveryCharge =
+        order.deliveryCharge ?? Math.max(0, (order.total ?? finalTotal) - subtotal);
 
-    toast({
-      title: "Order Placed Successfully! 🎉",
-      description: "We'll contact you shortly to confirm your order.",
-    });
+      downloadReceiptPdf({
+        orderId: order._id,
+        createdAt: order.createdAt || new Date().toISOString(),
+        status: order.status || "placed",
+        customerName: order.customerName || formData.name,
+        phone: order.phone || formData.phone,
+        address: order.address || formData.address,
+        pincode: order.pincode || formData.pincode,
+        paymentMethod: order.paymentMethod || "cod",
+        paymentStatus: order.paymentStatus || "pending",
+        notes: order.notes || formData.notes,
+        subtotal,
+        deliveryCharge: resolvedDeliveryCharge,
+        total: order.total ?? finalTotal,
+        items: order.items.map((item) => {
+          const productId =
+            typeof item.product === "string"
+              ? item.product
+              : (item.product?._id ?? "");
 
-    setIsSubmitting(false);
+          return {
+            name: productNameMap.get(productId) || item.product?.name || "Product",
+            quantity: item.quantity,
+            unitPrice: item.price,
+          };
+        }),
+      });
+
+      setOrderPlaced(true);
+      clearCart();
+
+      toast({
+        title: "Order Placed Successfully! 🎉",
+        description: "Receipt downloaded. We'll contact you shortly to confirm your order.",
+      });
+    } catch (err) {
+      toast({
+        title: "Order Failed",
+        description: err instanceof Error ? err.message : "Unable to place order.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (orderPlaced) {
@@ -97,8 +194,7 @@ const Checkout = () => {
     );
   }
 
-  if (items.length === 0) {
-    navigate("/cart");
+  if (!isAuthenticated || items.length === 0) {
     return null;
   }
 
@@ -141,6 +237,17 @@ const Checkout = () => {
                         type="tel"
                         placeholder="Enter phone number"
                         value={formData.phone}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="pincode">Pincode *</Label>
+                      <Input
+                        id="pincode"
+                        name="pincode"
+                        placeholder="Enter 6-digit pincode"
+                        value={formData.pincode}
                         onChange={handleInputChange}
                         required
                       />
@@ -203,7 +310,7 @@ const Checkout = () => {
 
             {/* Order Summary */}
             <div className="lg:col-span-1">
-              <div className="bg-card rounded-xl p-6 shadow-card border border-border/50 sticky top-24">
+              <div className="bg-card rounded-xl p-6 shadow-card border border-border/50 lg:sticky lg:top-24">
                 <h3 className="font-bold text-lg text-foreground mb-4">
                   Order Summary
                 </h3>

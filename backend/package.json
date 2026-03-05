@@ -1,0 +1,29 @@
+{
+  "name": "vel-super-market-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "start:5001": "set PORT=5001&& node src/server.js",
+    "start:auto": "node scripts/run-with-free-port.cjs node src/server.js",
+    "dev": "npm run dev:auto",
+    "dev:5000": "set PORT=5000&& nodemon src/server.js",
+    "dev:5001": "set PORT=5001&& nodemon src/server.js",
+    "dev:auto": "node scripts/run-with-free-port.cjs nodemon src/server.js",
+    "seed:products": "node src/seedProducts.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-validator": "^7.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.5.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

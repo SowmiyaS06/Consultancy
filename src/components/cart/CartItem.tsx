@@ -23,7 +23,7 @@ const CartItemComponent = ({ item }: CartItemProps) => {
   };
 
   return (
-    <div className="flex items-center gap-4 bg-card rounded-xl p-4 shadow-soft border border-border/50">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-4 bg-card rounded-xl p-4 shadow-soft border border-border/50">
       {/* Product Image */}
       <div className="w-16 h-16 bg-accent/30 rounded-lg flex items-center justify-center shrink-0">
         <span className="text-3xl">{getCategoryEmoji(item.category)}</span>
@@ -62,12 +62,12 @@ const CartItemComponent = ({ item }: CartItemProps) => {
       </div>
 
       {/* Subtotal & Remove */}
-      <div className="text-right">
+      <div className="w-full sm:w-auto flex items-center justify-between sm:block sm:text-right">
         <p className="font-bold text-foreground">₹{item.price * item.quantity}</p>
         <Button
           variant="ghost"
           size="sm"
-          className="text-destructive hover:text-destructive hover:bg-destructive/10 p-0 h-auto mt-1"
+          className="text-destructive hover:text-destructive hover:bg-destructive/10 p-0 h-auto sm:mt-1"
           onClick={() => removeFromCart(item.id)}
         >
           <Trash2 className="h-4 w-4" />
