@@ -1,7 +1,8 @@
 import type { AdminProfile } from "@/types/admin";
 import type { PaymentMethod, PaymentStatus } from "@/lib/storeApi";
+import { API_BASE_URL } from "@/lib/apiConfig";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE = API_BASE_URL;
 
 const jsonHeaders = (token?: string | null) => {
   const headers: Record<string, string> = { "Content-Type": "application/json" };

@@ -9,5 +9,11 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, 'src')
     }
+  },
+  build: {
+    sourcemap: false,
+    target: 'es2020',
+    cssCodeSplit: true,
+    reportCompressedSize: true,
   }
 })

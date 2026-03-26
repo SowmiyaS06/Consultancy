@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+import { API_BASE_URL } from "@/lib/apiConfig";
+
+const API_BASE = API_BASE_URL;
 
 const jsonHeaders = (token?: string | null) => {
   const headers: Record<string, string> = { "Content-Type": "application/json" };

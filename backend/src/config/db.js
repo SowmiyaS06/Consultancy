@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { getMongoUri } = require("./env");
 
 let eventsAttached = false;
 
@@ -24,7 +25,7 @@ const attachConnectionEvents = () => {
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const connectDB = async () => {
-  const uri = process.env.MONGODB_URI || process.env.MONGODB_ATLAS_URI || process.env.DATABASE_URL;
+  const uri = getMongoUri();
   if (!uri) {
     throw new Error(
       "Mongo URI is not set. Configure MONGODB_URI (preferred Atlas URI), MONGODB_ATLAS_URI, or DATABASE_URL.",

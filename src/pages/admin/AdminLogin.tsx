@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { API_BASE_URL } from "@/lib/apiConfig";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import type { AdminProfile } from "@/types/admin";
 
@@ -16,7 +17,7 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isAuthenticated } = useAdminAuth();
-  const apiBase = import.meta.env.VITE_API_BASE_URL || "";
+  const apiBase = API_BASE_URL;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
