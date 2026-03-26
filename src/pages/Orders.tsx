@@ -6,6 +6,7 @@ import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/useAuth";
 import { storeApi, type CustomerOrder } from "@/lib/storeApi";
+import { getPaymentMethodLabel } from "@/lib/paymentMethod";
 import { downloadReceiptPdf } from "@/lib/receiptPdf";
 
 const downloadReceipt = (order: CustomerOrder) => {
@@ -88,6 +89,9 @@ const Orders = () => {
                       </div>
                       <div className="text-sm text-muted-foreground">
                         Status: <span className="text-foreground font-medium">{order.status}</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Payment: <span className="text-foreground font-medium">{getPaymentMethodLabel(order.paymentMethod)}</span>
                       </div>
                       <div className="text-sm text-muted-foreground">
                         Total: <span className="text-foreground font-medium">₹{order.total}</span>

@@ -1,4 +1,5 @@
 import type { AdminProfile } from "@/types/admin";
+import type { PaymentMethod, PaymentStatus } from "@/lib/storeApi";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
@@ -68,8 +69,8 @@ export interface AdminOfferInput {
 export interface AdminOrder {
   _id: string;
   status: "placed" | "delivered" | "cancelled";
-  paymentMethod?: string;
-  paymentStatus?: string;
+  paymentMethod?: PaymentMethod;
+  paymentStatus?: PaymentStatus;
   razorpayPaymentId?: string;
   total: number;
   user?: { name?: string; email?: string };
@@ -90,6 +91,38 @@ export interface AdminPincode {
   isServiceable: boolean;
 }
 
+export interface AdminDailySale {
+  date: string;
+  revenue: number;
+}
+
+export interface AdminTopProduct {
+  productId: string;
+  productName: string;
+  totalQuantitySold: number;
+  totalRevenueGenerated: number;
+}
+
+export interface AdminLowStockProduct {
+  productId: string;
+  productName: string;
+  currentStock: number;
+}
+
+export interface AdminAnalytics {
+  totalRevenue: number;
+  todayRevenue: number;
+  weeklyRevenue: number;
+  monthlyRevenue: number;
+  totalOrders: number;
+  totalProducts: number;
+  inStockProducts: number;
+  outOfStockProducts: number;
+  topProducts: AdminTopProduct[];
+  lowStockProducts: AdminLowStockProduct[];
+  dailySales: AdminDailySale[];
+}
+
 export const adminApi = {
   getProfile: async (token: string) => {
     const response = await fetch(`${API_BASE}/api/admin/me`, {
@@ -102,6 +135,12 @@ export const adminApi = {
       headers: jsonHeaders(token),
     });
     return handleResponse<{ summary: AdminSummary }>(response);
+  },
+  getAnalytics: async (token: string) => {
+    const response = await fetch(`${API_BASE}/api/admin/analytics`, {
+      headers: jsonHeaders(token),
+    });
+    return handleResponse<AdminAnalytics>(response);
   },
   listProducts: async (token: string) => {
     const response = await fetch(`${API_BASE}/api/admin/products`, {
@@ -182,6 +221,18 @@ export const adminApi = {
       method: "PATCH",
       headers: jsonHeaders(token),
       body: JSON.stringify({ status }),
+    });
+    return handleResponse<{ order: AdminOrder }>(response);
+  },
+  updateOrderPaymentStatus: async (
+    token: string,
+    id: string,
+    paymentStatus: PaymentStatus,
+  ) => {
+    const response = await fetch(`${API_BASE}/api/admin/orders/${id}/payment-status`, {
+      method: "PATCH",
+      headers: jsonHeaders(token),
+      body: JSON.stringify({ paymentStatus }),
     });
     return handleResponse<{ order: AdminOrder }>(response);
   },

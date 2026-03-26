@@ -15,10 +15,10 @@ const {
   updateOffer,
   toggleOfferActive,
 } = require("../controllers/adminOfferController");
-const { getOrders, updateOrderStatus } = require("../controllers/adminOrderController");
+const { getOrders, updateOrderStatus, updateOrderPaymentStatus } = require("../controllers/adminOrderController");
 const { listUsers } = require("../controllers/adminUserController");
 const { listPincodes, createPincode, updatePincode, togglePincode } = require("../controllers/adminPincodeController");
-const { getAdminSummary } = require("../controllers/adminDashboardController");
+const { getAdminSummary, getAdminAnalytics } = require("../controllers/adminDashboardController");
 
 const router = express.Router();
 
@@ -34,6 +34,7 @@ router.post(
 
 router.get("/me", adminAuth, getAdminProfile);
 router.get("/summary", adminAuth, getAdminSummary);
+router.get("/analytics", adminAuth, getAdminAnalytics);
 
 router.get("/products", adminAuth, listProducts);
 
@@ -111,6 +112,14 @@ router.patch(
   [body("status").isIn(["placed", "delivered", "cancelled"])],
   validate,
   updateOrderStatus,
+);
+
+router.patch(
+  "/orders/:id/payment-status",
+  adminAuth,
+  [body("paymentStatus").isIn(["pending", "pending verification", "paid", "failed"])],
+  validate,
+  updateOrderPaymentStatus,
 );
 
 router.get("/pincodes", adminAuth, listPincodes);

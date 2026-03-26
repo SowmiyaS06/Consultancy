@@ -6,7 +6,7 @@ const { FREE_DELIVERY_THRESHOLD, DELIVERY_CHARGE } = require("../config/commerce
 
 const createOrder = async (req, res) => {
   try {
-    const { items, paymentMethod, name, phone, address, pincode, notes } = req.body;
+    const { items, paymentMethod, paymentStatus, name, phone, address, pincode, notes } = req.body;
     const productIds = items.map((item) => item.productId);
 
     const serviceable = await Pincode.findOne({ code: pincode, isServiceable: true });
@@ -47,6 +47,7 @@ const createOrder = async (req, res) => {
       deliveryCharge,
       total,
       paymentMethod,
+      paymentStatus,
       customerName: name,
       phone,
       address,

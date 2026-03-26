@@ -1,101 +1,390 @@
-const fs = require("fs");
 const path = require("path");
-const vm = require("vm");
 const dotenv = require("dotenv");
-const { connectDB } = require("./config/db");
+const mongoose = require("mongoose");
 const Product = require("./models/Product");
-const { getDynamicProductImage } = require("./utils/productImage");
 
 dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 
-const getProductsFromFrontend = () => {
-  const dataPath = path.resolve(__dirname, "..", "..", "src", "data", "products.ts");
-  console.log(`Reading products from: ${dataPath}`);
-  const content = fs.readFileSync(dataPath, "utf8");
-  console.log(`Products file chars: ${content.length}`);
+const MONGODB_URI = process.env.MONGODB_URI;
 
-  const exportIndex = content.indexOf("export const products");
-  if (exportIndex === -1) {
-    throw new Error("Products export not found");
-  }
-
-  const equalsIndex = content.indexOf("=", exportIndex);
-  if (equalsIndex === -1) {
-    throw new Error("Products export assignment not found");
-  }
-
-  const arrayStart = content.indexOf("[", equalsIndex);
-  if (arrayStart === -1) {
-    throw new Error("Products array start not found");
-  }
-
-  let depth = 0;
-  let arrayEnd = -1;
-  for (let i = arrayStart; i < content.length; i += 1) {
-    const char = content[i];
-    if (char === "[") depth += 1;
-    if (char === "]") depth -= 1;
-    if (depth === 0) {
-      arrayEnd = i;
-      break;
-    }
-  }
-
-  if (arrayEnd === -1) {
-    throw new Error("Products array end not found");
-  }
-
-  const arrayLiteral = content.slice(arrayStart, arrayEnd + 1);
-  console.log(`Parsed products array chars: ${arrayLiteral.length}`);
-  const sandbox = { module: { exports: null } };
-  vm.runInNewContext(`module.exports = ${arrayLiteral};`, sandbox);
-  if (!Array.isArray(sandbox.module.exports)) {
-    console.log("Parsed products export is not an array.");
-  }
-  console.log(`Parsed products count: ${Array.isArray(sandbox.module.exports) ? sandbox.module.exports.length : 0}`);
-  return sandbox.module.exports;
+const sanitizeUriForLogs = (uri) => {
+  if (!uri) return "";
+  return uri.replace(/:\/\/([^:]+):([^@]+)@/, "://$1:***@");
 };
 
-const normalizeProduct = (product) => ({
-  name: product.name,
-  price: product.price,
-  originalPrice: product.originalPrice,
-  category: product.category,
-  image: getDynamicProductImage(product.name, product.image),
-  brand: product.brand,
-  unit: product.unit,
-  stock: typeof product.stock === "number" ? product.stock : 0,
-  inStock: typeof product.inStock === "boolean" ? product.inStock : (product.stock || 0) > 0,
-  isOffer: Boolean(product.isOffer),
-  isActive: true,
+const categoryTemplates = [
+  {
+    category: "Daily Essentials",
+    items: [
+      "Toor Dal Premium",
+      "Idli Rice",
+      "Groundnut Oil",
+      "Iodized Salt",
+      "Sugar Fine",
+      "Wheat Flour Atta",
+      "Turmeric Powder",
+      "Red Chilli Powder",
+      "Coriander Powder",
+      "Tamarind Block",
+      "Cumin Seeds",
+      "Mustard Seeds",
+      "Urad Dal Split",
+    ],
+  },
+  {
+    category: "Snacks & Treats",
+    items: [
+      "Potato Chips Classic",
+      "Banana Chips Salted",
+      "Masala Murukku",
+      "Mixture Spicy",
+      "Salted Peanuts",
+      "Chocolate Wafer Rolls",
+      "Butter Cookies Tin",
+      "Roasted Makhana",
+      "Caramel Popcorn",
+      "Kara Boondi",
+      "Ribbon Pakoda",
+      "Jaggery Peanut Chikki",
+      "Dry Fruit Laddu Box",
+    ],
+  },
+  {
+    category: "Personal & Home Care",
+    items: [
+      "Bath Soap Pack",
+      "Hand Wash Refill",
+      "Toothpaste Gel",
+      "Shampoo Smooth Care",
+      "Floor Cleaner Citrus",
+      "Dishwash Gel",
+      "Toilet Cleaner Active",
+      "Surface Disinfectant Spray",
+      "Liquid Detergent",
+      "Fabric Conditioner",
+      "Garbage Bags Large",
+      "Air Freshener Lavender",
+      "Scrub Sponge Pack",
+    ],
+  },
+  {
+    category: "School & Kids",
+    items: [
+      "Lunch Box Steel",
+      "Water Bottle 750ml",
+      "Kids Choco Drink Mix",
+      "Color Pencils Set",
+      "Sketch Pen Set",
+      "School Labels Pack",
+      "Crayons Jumbo",
+      "Glue Stick",
+      "Craft Paper Bundle",
+      "Kids Toothbrush Soft",
+      "Kids Shampoo Mild",
+      "Fruit Jam Mixed",
+      "Peanut Butter Crunchy",
+    ],
+  },
+  {
+    category: "Kitchen Needs",
+    items: [
+      "Aluminium Foil Roll",
+      "Cling Wrap Roll",
+      "Storage Container Set",
+      "Garlic Paste",
+      "Ginger Paste",
+      "Sambar Powder",
+      "Rasam Powder",
+      "Pepper Whole",
+      "Fenugreek Seeds",
+      "Curry Leaves Dried",
+      "Basmati Rice",
+      "Poha Thick",
+      "Semolina Rava",
+    ],
+  },
+  {
+    category: "Fresh Items",
+    items: [
+      "Tomato Hybrid",
+      "Onion Small",
+      "Potato Fresh",
+      "Carrot Orange",
+      "Beans French",
+      "Cabbage Green",
+      "Banana Robusta",
+      "Apple Royal Gala",
+      "Orange Nagpur",
+      "Pomegranate Premium",
+      "Coriander Leaves",
+      "Mint Leaves",
+      "Coconut Whole",
+    ],
+  },
+  {
+    category: "Grocery Staples",
+    items: [
+      "Chana Dal",
+      "Moong Dal",
+      "Rajma Red",
+      "Kabuli Chana",
+      "Black Pepper Powder",
+      "Cardamom Whole",
+      "Cloves Whole",
+      "Bay Leaves",
+      "Rock Salt",
+      "Vermicelli Roasted",
+      "Jaggery Powder",
+      "Corn Flour",
+      "Besan Flour",
+    ],
+  },
+  {
+    category: "Snacks & Biscuits",
+    items: [
+      "Marie Gold Biscuits",
+      "Cream Biscuits Vanilla",
+      "Digestive Biscuits",
+      "Jeera Crackers",
+      "Salt Biscuits",
+      "Chocolate Cookies",
+      "Oats Cookies",
+      "Rusk Toast",
+      "Khari Puff",
+      "Mini Samosa Pack",
+      "Baked Nachos",
+      "Multigrain Crackers",
+      "Cheese Wafers",
+    ],
+  },
+  {
+    category: "Dairy & Bakery",
+    items: [
+      "Full Cream Milk 1L",
+      "Curd Cup",
+      "Paneer Fresh",
+      "Butter Unsalted",
+      "Cheese Slices",
+      "Bread Brown",
+      "Bread White",
+      "Whole Wheat Bun",
+      "Eggless Cake Vanilla",
+      "Muffin Chocolate",
+      "Greek Yogurt",
+      "Buttermilk Spiced",
+      "Fresh Cream",
+    ],
+  },
+  {
+    category: "Beverages",
+    items: [
+      "Tea Dust Premium",
+      "Instant Coffee",
+      "Green Tea Bags",
+      "Lemon Juice Concentrate",
+      "Mango Juice",
+      "Mixed Fruit Juice",
+      "Tender Coconut Water",
+      "Rose Milk Syrup",
+      "Malted Health Drink",
+      "Soda Water",
+      "Energy Drink Can",
+      "Sparkling Water",
+      "Badam Drink",
+    ],
+  },
+  {
+    category: "Personal Care",
+    items: [
+      "Face Wash Neem",
+      "Moisturizing Cream",
+      "Body Lotion Cocoa",
+      "Hair Oil Coconut",
+      "Conditioner Smooth",
+      "Deodorant Roll On",
+      "Shaving Cream",
+      "Razor Blades Pack",
+      "Lip Balm",
+      "Sunscreen SPF 50",
+      "Talc Powder",
+      "Cotton Buds",
+      "Wet Wipes",
+    ],
+  },
+  {
+    category: "Home Care / Cleaning",
+    items: [
+      "Washing Powder",
+      "Detergent Bar",
+      "Glass Cleaner",
+      "Bathroom Cleaner",
+      "Kitchen Cleaner",
+      "Bleach Liquid",
+      "Phenyl Disinfectant",
+      "Mop Refill",
+      "Broom Soft",
+      "Dust Pan Set",
+      "Microfiber Cloth Pack",
+      "Drain Cleaner",
+      "Insect Repellent Spray",
+    ],
+  },
+  {
+    category: "Baby Care",
+    items: [
+      "Baby Diapers Medium",
+      "Baby Wipes Aloe",
+      "Baby Lotion",
+      "Baby Soap Mild",
+      "Baby Shampoo",
+      "Baby Powder",
+      "Baby Oil",
+      "Feeding Bottle",
+      "Baby Cereal Rice",
+      "Baby Rattle Toy",
+      "Baby Laundry Liquid",
+      "Baby Bib Set",
+      "Nappy Rash Cream",
+    ],
+  },
+  {
+    category: "Health & Wellness",
+    items: [
+      "Multivitamin Tablets",
+      "Vitamin C Tablets",
+      "Protein Powder",
+      "Glucose Powder",
+      "Pain Relief Balm",
+      "Digital Thermometer",
+      "Band Aid Strips",
+      "Hand Sanitizer",
+      "Ayurvedic Chyawanprash",
+      "Herbal Immunity Drink",
+      "ORS Sachets",
+      "Antiseptic Liquid",
+      "Steam Inhaler",
+    ],
+  },
+  {
+    category: "Stationery & Misc",
+    items: [
+      "Notebook A4",
+      "Ball Pen Blue",
+      "Pencil HB Pack",
+      "Eraser Soft",
+      "Sharpener Metal",
+      "Scale 30cm",
+      "Stapler Mini",
+      "Sticky Notes",
+      "Marker Pen Black",
+      "Calculator Basic",
+      "Cello Tape Roll",
+      "Brown Cover Sheets",
+      "File Folder",
+    ],
+  },
+  {
+    category: "Pet Care",
+    items: [
+      "Dog Food Adult",
+      "Cat Food Tuna",
+      "Puppy Food Starter",
+      "Pet Shampoo",
+      "Pet Soap",
+      "Dog Biscuits",
+      "Cat Litter",
+      "Pet Bowl Steel",
+      "Pet Leash Nylon",
+      "Flea Control Powder",
+      "Pet Tick Spray",
+      "Pet Wipes",
+      "Pet Chew Sticks",
+    ],
+  },
+];
+
+const buildImageUrl = (name, category) => {
+  const query = encodeURIComponent(`${name} ${category} product packshot`);
+  return `https://source.unsplash.com/800x800/?${query}`;
+};
+
+const basePrices = {
+  "Daily Essentials": 35,
+  "Snacks & Treats": 30,
+  "Personal & Home Care": 60,
+  "School & Kids": 55,
+  "Kitchen Needs": 45,
+  "Fresh Items": 25,
+  "Grocery Staples": 40,
+  "Snacks & Biscuits": 20,
+  "Dairy & Bakery": 28,
+  Beverages: 30,
+  "Personal Care": 70,
+  "Home Care / Cleaning": 65,
+  "Baby Care": 80,
+  "Health & Wellness": 90,
+  "Stationery & Misc": 18,
+  "Pet Care": 75,
+};
+
+const productData = categoryTemplates.flatMap(({ category, items }) => {
+  const base = basePrices[category] || 40;
+  return items.map((name, index) => {
+    const price = Number((base + index * 7 + (index % 3) * 5).toFixed(2));
+    const stock = 20 + ((index * 9) % 80);
+
+    return {
+      name,
+      price,
+      category,
+      stock,
+      image: buildImageUrl(name, category),
+      inStock: stock > 0,
+      isActive: true,
+    };
+  });
 });
 
 const seedProducts = async () => {
-  const products = getProductsFromFrontend().map(normalizeProduct);
-
-  if (!products.length) {
-    console.log("No products found to seed.");
-    return;
+  if (!MONGODB_URI) {
+    throw new Error("MONGODB_URI is not set in backend/.env");
   }
 
-  const operations = products.map((product) => ({
-    updateOne: {
-      filter: { name: product.name, category: product.category },
-      update: { $set: product },
-      upsert: true,
-    },
-  }));
+  console.log(`Connecting to MongoDB: ${sanitizeUriForLogs(MONGODB_URI)}`);
+  await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 10000 });
+  console.log("Connected to MongoDB Atlas");
 
-  const result = await Product.bulkWrite(operations);
-  console.log(`Products upserted: ${result.upsertedCount}, modified: ${result.modifiedCount}`);
+  try {
+    const existingCount = await Product.countDocuments();
+    console.log(`Existing products in DB: ${existingCount}`);
+
+    const deleteResult = await Product.deleteMany({});
+    console.log(`Cleared existing products: ${deleteResult.deletedCount}`);
+
+    const insertResult = await Product.insertMany(productData, { ordered: false });
+    console.log(`Inserted products: ${insertResult.length}`);
+
+    const totalByCategory = await Product.aggregate([
+      { $group: { _id: "$category", count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]);
+
+    console.log("Category-wise product count:");
+    totalByCategory.forEach((entry) => {
+      console.log(`- ${entry._id}: ${entry.count}`);
+    });
+  } finally {
+    await mongoose.disconnect();
+    console.log("Disconnected from MongoDB");
+  }
 };
 
-connectDB()
-  .then(async () => {
-    await seedProducts();
+seedProducts()
+  .then(() => {
+    console.log(`Seeding completed successfully. Total products prepared: ${productData.length}`);
     process.exit(0);
   })
-  .catch((err) => {
-    console.error("Failed to seed products", err);
+  .catch((error) => {
+    console.error("Seeding failed:", error.message);
     process.exit(1);
   });

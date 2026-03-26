@@ -7,30 +7,60 @@ import { resolveProductImage } from "@/lib/productImage";
 import type { Product } from "@/types/product";
 
 const Offers = () => {
+  const getDiscountRateForOffer = (title: string) => {
+    const normalized = title.toLowerCase();
+
+    if (normalized.includes("bonanza")) return 0.25;
+    if (normalized.includes("festival")) return 0.22;
+    if (normalized.includes("mega")) return 0.2;
+    if (normalized.includes("delight")) return 0.18;
+    if (normalized.includes("comfort")) return 0.17;
+    if (normalized.includes("wellness")) return 0.16;
+    if (normalized.includes("essentials")) return 0.15;
+
+    return 0.14;
+  };
+
+  const getOfferOriginalPrice = (price: number, discountRate: number, originalPrice?: number) => {
+    if (typeof originalPrice === "number" && originalPrice > price) {
+      return originalPrice;
+    }
+
+    const safeRate = Math.min(Math.max(discountRate, 0.05), 0.6);
+    const derived = Math.round(price / (1 - safeRate));
+    return derived > price ? derived : price + 10;
+  };
+
   const offersQuery = useQuery({
     queryKey: ["store-offers"],
     queryFn: () => storeApi.listOffers(),
   });
 
-  const mapProduct = (product: StoreProduct): Product => ({
+  const mapProduct = (product: StoreProduct, offerTitle: string): Product => {
+    const discountRate = getDiscountRateForOffer(offerTitle);
+
+    return {
     id: product._id,
     name: product.name,
     price: product.price,
-    originalPrice: product.originalPrice,
+    originalPrice: getOfferOriginalPrice(product.price, discountRate, product.originalPrice),
     category: product.category || "uncategorized",
     image: resolveProductImage(product.name, product.image),
     unit: product.unit || "unit",
     inStock: product.inStock ?? (product.stock ?? 0) > 0,
     isOffer: true,
-  });
+    };
+  };
 
   const offerProducts = (offersQuery.data?.offers || [])
-    .flatMap((offer: StoreOffer) => offer.products)
+    .flatMap((offer: StoreOffer) =>
+      offer.products.map((product) => mapProduct(product, offer.title)),
+    )
     .reduce<Product[]>((acc, product) => {
-      if (acc.some((item) => item.id === product._id)) {
+      if (acc.some((item) => item.id === product.id)) {
         return acc;
       }
-      acc.push(mapProduct(product));
+      acc.push(product);
       return acc;
     }, []);
 

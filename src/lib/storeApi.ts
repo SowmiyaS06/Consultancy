@@ -46,9 +46,13 @@ export interface OrderItemInput {
   quantity: number;
 }
 
+export type PaymentMethod = "cod" | "upi" | "card" | "netbanking";
+export type PaymentStatus = "pending" | "pending verification" | "paid" | "failed";
+
 export interface CreateOrderInput {
   items: OrderItemInput[];
-  paymentMethod: string;
+  paymentMethod: PaymentMethod;
+  paymentStatus?: PaymentStatus;
   name: string;
   phone: string;
   address: string;
@@ -67,8 +71,8 @@ export interface CreateOrderResponseOrder {
   address?: string;
   pincode?: string;
   notes?: string;
-  paymentMethod?: string;
-  paymentStatus?: string;
+  paymentMethod?: PaymentMethod;
+  paymentStatus?: PaymentStatus;
   createdAt: string;
   items: Array<{ product?: string | { _id?: string; name?: string }; quantity: number; price: number }>;
 }
@@ -84,8 +88,8 @@ export interface CustomerOrder {
   address?: string;
   pincode?: string;
   notes?: string;
-  paymentMethod?: string;
-  paymentStatus?: string;
+  paymentMethod?: PaymentMethod;
+  paymentStatus?: PaymentStatus;
   createdAt: string;
   items: Array<{
     product?: { name?: string; price?: number; image?: string };

@@ -148,6 +148,56 @@
   .hero-gradient {
     background: var(--gradient-hero);
   }
+
+  .hero-layout {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+  }
+
+  .hero-left {
+    flex: 1 1 0%;
+    max-width: 42rem;
+  }
+
+  .hero-right {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .hero-image {
+    width: 470px;
+    max-width: 100%;
+    height: auto;
+    border-radius: 1rem;
+    box-shadow: var(--shadow-hover);
+    object-fit: cover;
+  }
+
+  @media (max-width: 768px) {
+    .hero-layout {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .hero-left {
+      max-width: 100%;
+    }
+
+    .hero-right {
+      max-width: 100%;
+      margin-top: 0.5rem;
+    }
+
+    .hero-image {
+      width: min(350px, 92vw);
+    }
+  }
 }
 
 @layer utilities {

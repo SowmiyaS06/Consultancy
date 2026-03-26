@@ -12,7 +12,16 @@
     "dev:5000": "set PORT=5000&& nodemon src/server.js",
     "dev:5001": "set PORT=5001&& nodemon src/server.js",
     "dev:auto": "node scripts/run-with-free-port.cjs nodemon src/server.js",
-    "seed:products": "node src/seedProducts.js"
+    "seed": "node src/seedProducts.js",
+    "seed:products": "node src/seedProducts.js",
+    "seed-users": "node src/seedUsers.js",
+    "seed-orders": "node src/seedOrders.js",
+    "seed-pincodes": "node src/seedPincodes.js",
+    "seed-offers": "node src/seedOffers.js",
+    "fix-prices": "node src/fixPrices.js",
+    "seed:analytics": "node src/seedAnalyticsData.js",
+    "migrate": "node src/migrate.js",
+    "migrate:local-to-atlas": "node src/migrateLocalToAtlas.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

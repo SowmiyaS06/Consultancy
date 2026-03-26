@@ -3,16 +3,29 @@ import { useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { storeApi } from "@/lib/storeApi";
+import { storeApi, type PaymentMethod, type PaymentStatus } from "@/lib/storeApi";
+import { PAYMENT_METHOD_OPTIONS } from "@/lib/paymentMethod";
 import { DELIVERY_CHARGE, FREE_DELIVERY_THRESHOLD } from "@/config/commerce";
 import { downloadReceiptPdf } from "@/lib/receiptPdf";
 import { CheckCircle2 } from "lucide-react";
+
+const UPI_ID = "selvarajsowmiya11@okhdfcbank";
+const UPI_PAYEE_NAME = "Sowmiya Consultancy";
+const UPI_TRANSACTION_NOTE = "Consultancy Payment";
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -21,6 +34,8 @@ const Checkout = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("cod");
+  const [isUpiQrModalOpen, setIsUpiQrModalOpen] = useState(false);
 
   const deliveryCharge = totalPrice >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE;
   const finalTotal = totalPrice + deliveryCharge;
@@ -47,23 +62,19 @@ const Checkout = () => {
 
   const isMongoObjectId = (value: string) => /^[a-f0-9]{24}$/i.test(value);
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const formatPrice = (value: number) => {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue.toFixed(2) : "0.00";
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const validateCheckout = () => {
     if (!formData.name || !formData.phone || !formData.address || !formData.pincode) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (formData.pincode.trim().length !== 6) {
@@ -72,7 +83,7 @@ const Checkout = () => {
         description: "Please enter a valid 6-digit pincode.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (items.length === 0) {
@@ -81,7 +92,7 @@ const Checkout = () => {
         description: "Your cart is empty. Add some products first.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (!token) {
@@ -91,7 +102,7 @@ const Checkout = () => {
         variant: "destructive",
       });
       navigate("/login", { state: { from: "/checkout" }, replace: true });
-      return;
+      return false;
     }
 
     if (items.some((item) => !isMongoObjectId(item.id))) {
@@ -100,8 +111,14 @@ const Checkout = () => {
         description: "Please clear cart and add products again before checkout.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
+
+    return true;
+  };
+
+  const submitOrder = async (paymentStatus?: PaymentStatus) => {
+    if (!validateCheckout() || !token) return;
 
     setIsSubmitting(true);
 
@@ -109,7 +126,8 @@ const Checkout = () => {
       const cartSnapshot = [...items];
       const { order } = await storeApi.createOrder(token, {
         items: items.map((item) => ({ productId: item.id, quantity: item.quantity })),
-        paymentMethod: "cod",
+        paymentMethod: selectedPaymentMethod,
+        paymentStatus,
         name: formData.name,
         phone: formData.phone,
         address: formData.address,
@@ -130,8 +148,8 @@ const Checkout = () => {
         phone: order.phone || formData.phone,
         address: order.address || formData.address,
         pincode: order.pincode || formData.pincode,
-        paymentMethod: order.paymentMethod || "cod",
-        paymentStatus: order.paymentStatus || "pending",
+        paymentMethod: order.paymentMethod || selectedPaymentMethod,
+        paymentStatus: order.paymentStatus || paymentStatus || "pending",
         notes: order.notes || formData.notes,
         subtotal,
         deliveryCharge: resolvedDeliveryCharge,
@@ -150,6 +168,7 @@ const Checkout = () => {
         }),
       });
 
+      setIsUpiQrModalOpen(false);
       setOrderPlaced(true);
       clearCart();
 
@@ -166,6 +185,37 @@ const Checkout = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const buildUpiPaymentLink = () => {
+    const orderAmount = finalTotal.toFixed(2);
+    return `upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(UPI_PAYEE_NAME)}&am=${encodeURIComponent(orderAmount)}&cu=INR&tn=${encodeURIComponent(UPI_TRANSACTION_NOTE)}`;
+  };
+
+  const upiPaymentLink = buildUpiPaymentLink();
+  const upiQrCodeSrc = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiPaymentLink)}`;
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (selectedPaymentMethod === "upi") {
+      if (!validateCheckout()) return;
+      setIsUpiQrModalOpen(true);
+      return;
+    }
+
+    void submitOrder();
+  };
+
+  const handleUpiPaymentCompleted = () => {
+    void submitOrder("paid");
   };
 
   if (orderPlaced) {
@@ -284,17 +334,40 @@ const Checkout = () => {
                   <h2 className="font-bold text-lg text-foreground mb-4">
                     Payment Method
                   </h2>
-                  <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg border-2 border-primary">
-                    <div className="w-4 h-4 bg-primary rounded-full" />
-                    <div>
-                      <p className="font-medium text-foreground">
-                        Cash on Delivery
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Pay when your order arrives
-                      </p>
+                  <RadioGroup
+                    value={selectedPaymentMethod}
+                    onValueChange={(value) => setSelectedPaymentMethod(value as PaymentMethod)}
+                    className="space-y-3"
+                  >
+                    {PAYMENT_METHOD_OPTIONS.map((option) => {
+                      const selected = selectedPaymentMethod === option.value;
+
+                      return (
+                        <div
+                          key={option.value}
+                          className={`flex items-start gap-3 p-4 rounded-lg border-2 transition-colors ${
+                            selected
+                              ? "border-primary bg-accent/50"
+                              : "border-border/70 bg-background"
+                          }`}
+                        >
+                          <RadioGroupItem id={`payment-${option.value}`} value={option.value} className="mt-1" />
+                          <Label htmlFor={`payment-${option.value}`} className="cursor-pointer">
+                            <p className="font-medium text-foreground">{option.label}</p>
+                            <p className="text-sm text-muted-foreground">{option.description}</p>
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </RadioGroup>
+
+                  {selectedPaymentMethod === "upi" && (
+                    <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
+                      <p className="text-sm text-foreground font-medium">UPI QR Payment</p>
+                      <p className="text-sm text-muted-foreground">UPI ID: {UPI_ID}</p>
+                      <p className="text-sm text-muted-foreground">Amount: ₹{finalTotal.toFixed(2)}</p>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 <Button
@@ -303,9 +376,44 @@ const Checkout = () => {
                   className="w-full"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Placing Order..." : `Place Order - ₹${finalTotal}`}
+                  {isSubmitting
+                    ? "Placing Order..."
+                    : selectedPaymentMethod === "upi"
+                      ? `Pay via UPI - ₹${finalTotal.toFixed(2)}`
+                      : `Place Order - ₹${finalTotal}`}
                 </Button>
               </form>
+
+              <Dialog open={isUpiQrModalOpen} onOpenChange={setIsUpiQrModalOpen}>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>UPI QR Payment</DialogTitle>
+                    <DialogDescription>
+                      Scan and Pay using Google Pay / PhonePe / Paytm
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="flex flex-col items-center gap-4 py-2">
+                    <img
+                      src={upiQrCodeSrc}
+                      alt="UPI QR code"
+                      className="h-[250px] w-[250px] rounded-md border border-border"
+                    />
+                    <div className="w-full rounded-lg border border-border/60 bg-muted/30 p-3 text-sm space-y-1">
+                      <p className="text-foreground"><span className="font-medium">UPI ID:</span> {UPI_ID}</p>
+                      <p className="text-foreground"><span className="font-medium">Amount:</span> ₹{finalTotal.toFixed(2)}</p>
+                    </div>
+                    <Button
+                      type="button"
+                      className="w-full"
+                      onClick={handleUpiPaymentCompleted}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? "Submitting Order..." : "I Have Completed Payment"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
 
             {/* Order Summary */}
@@ -325,7 +433,7 @@ const Checkout = () => {
                         {item.name} × {item.quantity}
                       </span>
                       <span className="font-medium text-foreground">
-                        ₹{item.price * item.quantity}
+                        {formatPrice(item.price * item.quantity)}
                       </span>
                     </div>
                   ))}
@@ -334,7 +442,7 @@ const Checkout = () => {
                 <div className="space-y-2 mb-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-medium text-foreground">₹{totalPrice}</span>
+                    <span className="font-medium text-foreground">{formatPrice(totalPrice)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Delivery</span>
@@ -342,7 +450,7 @@ const Checkout = () => {
                       {deliveryCharge === 0 ? (
                         <span className="text-success">FREE</span>
                       ) : (
-                        `₹${deliveryCharge}`
+                        formatPrice(deliveryCharge)
                       )}
                     </span>
                   </div>
@@ -352,7 +460,7 @@ const Checkout = () => {
                   <div className="flex justify-between">
                     <span className="font-bold text-foreground">Total</span>
                     <span className="font-bold text-xl text-primary">
-                      ₹{finalTotal}
+                      {formatPrice(finalTotal)}
                     </span>
                   </div>
                 </div>

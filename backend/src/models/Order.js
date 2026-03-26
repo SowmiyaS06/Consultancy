@@ -1,5 +1,8 @@
 const mongoose = require("mongoose");
 
+const PAYMENT_METHODS = ["cod", "upi", "card", "netbanking"];
+const PAYMENT_STATUSES = ["pending", "pending verification", "paid", "failed"];
+
 const orderSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -23,8 +26,18 @@ const orderSchema = new mongoose.Schema(
       enum: ["placed", "delivered", "cancelled"],
       default: "placed",
     },
-    paymentMethod: { type: String, trim: true },
-    paymentStatus: { type: String, trim: true, default: "pending" },
+    paymentMethod: {
+      type: String,
+      trim: true,
+      enum: PAYMENT_METHODS,
+      default: "cod",
+    },
+    paymentStatus: {
+      type: String,
+      trim: true,
+      enum: PAYMENT_STATUSES,
+      default: "pending",
+    },
     razorpayPaymentId: { type: String, trim: true },
   },
   { timestamps: true },

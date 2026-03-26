@@ -40,7 +40,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
   return (
     <div className="relative bg-card rounded-xl overflow-hidden shadow-card card-hover border border-border/50 group">
       {/* Badges */}
-      {product.isOffer && (
+      {product.isOffer && discount > 0 && (
         <Badge className="absolute top-3 left-3 z-10 bg-destructive text-destructive-foreground font-bold">
           {discount}% OFF
         </Badge>

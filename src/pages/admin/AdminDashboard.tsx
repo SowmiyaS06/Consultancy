@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Package,
+  Tag,
   Users,
   ClipboardList,
   MapPin,
@@ -10,7 +11,19 @@ import {
   ChevronLeft,
   ChevronRight,
   Pencil,
+  AlertTriangle,
+  IndianRupee,
+  TrendingUp,
 } from "lucide-react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,10 +39,12 @@ import { useAdminAuth } from "@/context/AdminAuthContext";
 import { categories as fallbackCategories } from "@/data/products";
 import {
   adminApi,
+  type AdminOffer,
   type AdminProduct,
   type AdminProductInput,
 } from "@/lib/adminApi";
 import { buildCategoriesFromProducts } from "@/lib/categoryMeta";
+import { getPaymentMethodLabel } from "@/lib/paymentMethod";
 import { resolveProductImage } from "@/lib/productImage";
 
 const emptyProductForm = {
@@ -44,10 +59,17 @@ const emptyProductForm = {
 const sections = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "products", label: "Products", icon: Package },
+  { id: "offers", label: "Offers", icon: Tag },
   { id: "users", label: "Users", icon: Users },
   { id: "orders", label: "Orders", icon: ClipboardList },
   { id: "pincodes", label: "Pincodes", icon: MapPin },
 ];
+
+const currencyFormatter = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 0,
+});
 
 const AdminDashboard = () => {
   const { admin, token, logout } = useAdminAuth();
@@ -57,6 +79,8 @@ const AdminDashboard = () => {
   const [productForm, setProductForm] = useState(emptyProductForm);
   const [selectedProduct, setSelectedProduct] = useState<AdminProduct | null>(null);
   const [editProductForm, setEditProductForm] = useState(emptyProductForm);
+  const [offerSearch, setOfferSearch] = useState("");
+  const [offerPage, setOfferPage] = useState(1);
   const [pincodeCode, setPincodeCode] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const [productCategoryFilter, setProductCategoryFilter] = useState("");
@@ -69,11 +93,11 @@ const AdminDashboard = () => {
 
   const tokenReady = Boolean(token);
 
-  const summaryQuery = useQuery({
-    queryKey: ["admin-summary"],
-    queryFn: () => adminApi.getSummary(token || ""),
+  const analyticsQuery = useQuery({
+    queryKey: ["admin-analytics"],
+    queryFn: () => adminApi.getAnalytics(token || ""),
     enabled: tokenReady,
-    refetchInterval: tokenReady ? 15000 : false,
+    refetchInterval: tokenReady ? 30000 : false,
   });
 
   const productsQuery = useQuery({
@@ -86,6 +110,12 @@ const AdminDashboard = () => {
   const usersQuery = useQuery({
     queryKey: ["admin-users"],
     queryFn: () => adminApi.listUsers(token || ""),
+    enabled: tokenReady,
+  });
+
+  const offersQuery = useQuery({
+    queryKey: ["admin-offers"],
+    queryFn: () => adminApi.listOffers(token || ""),
     enabled: tokenReady,
   });
 
@@ -106,7 +136,7 @@ const AdminDashboard = () => {
     onSuccess: () => {
       setProductForm(emptyProductForm);
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-analytics"] });
     },
   });
 
@@ -122,14 +152,33 @@ const AdminDashboard = () => {
     mutationFn: (id: string) => adminApi.toggleProduct(token || "", id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-analytics"] });
+    },
+  });
+
+  const toggleOfferMutation = useMutation({
+    mutationFn: (id: string) => adminApi.toggleOffer(token || "", id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-offers"] });
     },
   });
 
   const updateOrderMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: "placed" | "delivered" | "cancelled" }) =>
       adminApi.updateOrderStatus(token || "", id, status),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-orders"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-analytics"] });
+    },
+  });
+
+  const updatePaymentStatusMutation = useMutation({
+    mutationFn: ({ id, paymentStatus }: { id: string; paymentStatus: "pending" | "pending verification" | "paid" | "failed" }) =>
+      adminApi.updateOrderPaymentStatus(token || "", id, paymentStatus),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-analytics"] });
+    },
   });
 
   const createPincodeMutation = useMutation({
@@ -161,10 +210,11 @@ const AdminDashboard = () => {
   }, [selectedProduct]);
 
   const products = productsQuery.data?.products || [];
+  const offers = offersQuery.data?.offers || [];
   const orders = ordersQuery.data?.orders || [];
   const users = usersQuery.data?.users || [];
   const pincodes = pincodesQuery.data?.pincodes || [];
-  const summary = summaryQuery.data?.summary;
+  const analytics = analyticsQuery.data;
 
   const categoryOptions = useMemo(() => {
     const dynamic = buildCategoriesFromProducts(
@@ -175,12 +225,15 @@ const AdminDashboard = () => {
   }, [products]);
 
   const errorMessages = [
-    summaryQuery.error,
+    analyticsQuery.error,
     productsQuery.error,
+    offersQuery.error,
     usersQuery.error,
     ordersQuery.error,
     pincodesQuery.error,
     updateProductMutation.error,
+    updateOrderMutation.error,
+    updatePaymentStatusMutation.error,
   ]
     .filter((error): error is Error => Boolean(error))
     .map((error) => error.message || "Request failed");
@@ -209,6 +262,24 @@ const AdminDashboard = () => {
     });
   }, [users, userSearch]);
 
+  const filteredOffers = useMemo(() => {
+    const term = offerSearch.trim().toLowerCase();
+    return offers.filter((offer: AdminOffer) => {
+      if (!term) return true;
+
+      const productNames = (offer.products || [])
+        .map((product) => product.name || "")
+        .join(" ")
+        .toLowerCase();
+
+      return (
+        offer.title.toLowerCase().includes(term) ||
+        offer.bannerUrl.toLowerCase().includes(term) ||
+        productNames.includes(term)
+      );
+    });
+  }, [offers, offerSearch]);
+
   const filteredOrders = useMemo(() => {
     const term = orderSearch.trim().toLowerCase();
     return orders.filter((order) => {
@@ -227,10 +298,12 @@ const AdminDashboard = () => {
   };
 
   const pagedProducts = paginate(filteredProducts, productPage);
+  const pagedOffers = paginate(filteredOffers, offerPage);
   const pagedUsers = paginate(filteredUsers, userPage);
   const pagedOrders = paginate(filteredOrders, orderPage);
 
   const productPageCount = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const offerPageCount = Math.max(1, Math.ceil(filteredOffers.length / pageSize));
   const userPageCount = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
   const orderPageCount = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
 
@@ -318,32 +391,154 @@ const AdminDashboard = () => {
           )}
 
           {activeSection === "dashboard" && (
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <div className="rounded-2xl border border-border/60 bg-card/90 p-5 flex items-center justify-between">
-                <div>
+            <section className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <div className="rounded-2xl border border-border/60 bg-card/90 p-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total Revenue</p>
+                    <p className="text-2xl font-bold text-foreground">{currencyFormatter.format(analytics?.totalRevenue ?? 0)}</p>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <IndianRupee className="h-5 w-5" />
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-card/90 p-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Today's Revenue</p>
+                    <p className="text-2xl font-bold text-foreground">{currencyFormatter.format(analytics?.todayRevenue ?? 0)}</p>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-card/90 p-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Weekly Revenue</p>
+                    <p className="text-2xl font-bold text-foreground">{currencyFormatter.format(analytics?.weeklyRevenue ?? 0)}</p>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-card/90 p-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Monthly Revenue</p>
+                    <p className="text-2xl font-bold text-foreground">{currencyFormatter.format(analytics?.monthlyRevenue ?? 0)}</p>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-card/90 p-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total Orders</p>
+                    <p className="text-2xl font-bold text-foreground">{analytics?.totalOrders ?? 0}</p>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <ClipboardList className="h-5 w-5" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-border/60 bg-card/90 p-5">
                   <p className="text-xs text-muted-foreground">Total Products</p>
-                  <p className="text-2xl font-bold text-foreground">{summary?.totalProducts ?? 0}</p>
+                  <p className="mt-2 text-2xl font-bold text-foreground">{analytics?.totalProducts ?? 0}</p>
                 </div>
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                  <Package className="h-5 w-5" />
+                <div className="rounded-2xl border border-border/60 bg-card/90 p-5">
+                  <p className="text-xs text-muted-foreground">In Stock</p>
+                  <p className="mt-2 text-2xl font-bold text-emerald-600">{analytics?.inStockProducts ?? 0}</p>
                 </div>
-              </div>
-              <div className="rounded-2xl border border-border/60 bg-card/90 p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Users</p>
-                  <p className="text-2xl font-bold text-foreground">{summary?.totalUsers ?? 0}</p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                  <Users className="h-5 w-5" />
+                <div className="rounded-2xl border border-border/60 bg-card/90 p-5">
+                  <p className="text-xs text-muted-foreground">Out Of Stock</p>
+                  <p className="mt-2 text-2xl font-bold text-destructive">{analytics?.outOfStockProducts ?? 0}</p>
                 </div>
               </div>
-              <div className="rounded-2xl border border-border/60 bg-card/90 p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Orders</p>
-                  <p className="text-2xl font-bold text-foreground">{summary?.totalOrders ?? 0}</p>
+
+              <div className="grid gap-6 xl:grid-cols-3">
+                <div className="rounded-2xl border border-border/60 bg-card/90 p-5 xl:col-span-2">
+                  <h2 className="text-lg font-semibold text-foreground">Sales (Last 7 Days)</h2>
+                  <div className="mt-4 h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={analytics?.dailySales || []}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
+                        <YAxis stroke="hsl(var(--muted-foreground))" />
+                        <Tooltip
+                          formatter={(value: number) => currencyFormatter.format(value)}
+                          contentStyle={{
+                            borderRadius: "12px",
+                            border: "1px solid hsl(var(--border))",
+                            backgroundColor: "hsl(var(--background))",
+                          }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke="hsl(var(--primary))"
+                          strokeWidth={3}
+                          dot={{ r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                  <ClipboardList className="h-5 w-5" />
+
+                <div className="rounded-2xl border border-border/60 bg-card/90 p-5">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-600" />
+                    <h2 className="text-lg font-semibold text-foreground">Low Stock Alerts</h2>
+                  </div>
+                  <div className="mt-4 space-y-2 max-h-72 overflow-y-auto">
+                    {(analytics?.lowStockProducts || []).length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No low stock alerts.</p>
+                    ) : (
+                      (analytics?.lowStockProducts || []).map((product) => (
+                        <div
+                          key={product.productId}
+                          className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2"
+                        >
+                          <p className="text-sm font-medium text-foreground">{product.productName}</p>
+                          <p className="text-xs text-muted-foreground">Stock: {product.currentStock}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border/60 bg-card/90 p-5">
+                <h2 className="text-lg font-semibold text-foreground mb-4">Top Selling Products</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-left text-xs text-muted-foreground">
+                      <tr>
+                        <th className="py-2">Product</th>
+                        <th className="py-2">Quantity Sold</th>
+                        <th className="py-2">Revenue Generated</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(analytics?.topProducts || []).length === 0 ? (
+                        <tr className="border-t border-border/60">
+                          <td className="py-3 text-muted-foreground" colSpan={3}>
+                            No paid order data available.
+                          </td>
+                        </tr>
+                      ) : (
+                        (analytics?.topProducts || []).map((product) => (
+                          <tr key={product.productId} className="border-t border-border/60">
+                            <td className="py-3 text-foreground">{product.productName}</td>
+                            <td className="py-3 text-foreground">{product.totalQuantitySold}</td>
+                            <td className="py-3 text-foreground">
+                              {currencyFormatter.format(product.totalRevenueGenerated)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </section>
@@ -751,6 +946,86 @@ const AdminDashboard = () => {
             </section>
           )}
 
+          {activeSection === "offers" && (
+            <section className="rounded-2xl border border-border/60 bg-card/90 p-5">
+              <h2 className="text-lg font-semibold text-foreground mb-4">Offers</h2>
+              <div className="mb-4">
+                <Input
+                  placeholder="Search offers"
+                  value={offerSearch}
+                  onChange={(event) => {
+                    setOfferSearch(event.target.value);
+                    setOfferPage(1);
+                  }}
+                  className="md:max-w-xs"
+                />
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs text-muted-foreground">
+                    <tr>
+                      <th className="py-2">Title</th>
+                      <th className="py-2">Banner</th>
+                      <th className="py-2">Products</th>
+                      <th className="py-2">Status</th>
+                      <th className="py-2">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedOffers.map((offer) => (
+                      <tr key={offer._id} className="border-t border-border/60">
+                        <td className="py-3 text-foreground font-medium">{offer.title}</td>
+                        <td className="py-3 text-muted-foreground max-w-xs truncate">{offer.bannerUrl}</td>
+                        <td className="py-3 text-foreground">{offer.products?.length || 0}</td>
+                        <td className="py-3">
+                          <span className="rounded-full bg-accent px-2 py-1 text-xs text-muted-foreground">
+                            {offer.isActive ? "Active" : "Disabled"}
+                          </span>
+                        </td>
+                        <td className="py-3">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => toggleOfferMutation.mutate(offer._id)}
+                            disabled={toggleOfferMutation.isPending}
+                          >
+                            {offer.isActive ? "Disable" : "Enable"}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+                <span>
+                  Showing {pagedOffers.length} of {filteredOffers.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setOfferPage((prev) => Math.max(1, prev - 1))}
+                    disabled={offerPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <span>
+                    Page {offerPage} of {offerPageCount}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setOfferPage((prev) => Math.min(offerPageCount, prev + 1))}
+                    disabled={offerPage === offerPageCount}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </section>
+          )}
+
           {activeSection === "orders" && (
             <section className="rounded-2xl border border-border/60 bg-card/90 p-5">
               <h2 className="text-lg font-semibold text-foreground mb-4">Orders</h2>
@@ -798,7 +1073,7 @@ const AdminDashboard = () => {
                         <td className="py-3 text-muted-foreground">{order.user?.email || "-"}</td>
                         <td className="py-3 text-foreground">₹{order.total}</td>
                         <td className="py-3 text-muted-foreground">
-                          {order.paymentMethod || "-"} / {order.paymentStatus || "-"}
+                          {getPaymentMethodLabel(order.paymentMethod)} / {order.paymentStatus || "-"}
                         </td>
                         <td className="py-3 text-foreground">{order.status}</td>
                         <td className="py-3">
@@ -820,6 +1095,27 @@ const AdminDashboard = () => {
                               <option value="placed">Placed</option>
                               <option value="delivered">Delivered</option>
                               <option value="cancelled">Cancelled</option>
+                            </select>
+
+                            <select
+                              aria-label="Payment status"
+                              className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                              value={order.paymentStatus || "pending"}
+                              onChange={(event) =>
+                                updatePaymentStatusMutation.mutate({
+                                  id: order._id,
+                                  paymentStatus: event.target.value as
+                                    | "pending"
+                                    | "pending verification"
+                                    | "paid"
+                                    | "failed",
+                                })
+                              }
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="pending verification">Pending Verification</option>
+                              <option value="paid">Paid</option>
+                              <option value="failed">Failed</option>
                             </select>
                           </div>
                         </td>

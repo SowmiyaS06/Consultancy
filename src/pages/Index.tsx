@@ -10,6 +10,7 @@ import { categories as fallbackCategories } from "@/data/products";
 import { FREE_DELIVERY_THRESHOLD } from "@/config/commerce";
 import { storeApi } from "@/lib/storeApi";
 import { buildCategoriesFromProducts } from "@/lib/categoryMeta";
+import groceryImage from "@/assets/grocery.png";
 
 const Index = () => {
   const productsQuery = useQuery({
@@ -34,30 +35,36 @@ const Index = () => {
         {/* Hero Section */}
         <section className="hero-gradient py-12 md:py-20">
           <div className="container-custom">
-            <div className="max-w-2xl animate-fade-in">
-              <span className="inline-block px-3 py-1 bg-accent text-accent-foreground text-sm font-medium rounded-full mb-4">
-                🛒 Your Neighborhood Store
-              </span>
-              <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-4 leading-tight">
-                Fresh Qualitied Products at
-                <span className="text-primary"> Affordable Prices</span>
-              </h1>
-              <p className="text-muted-foreground text-lg mb-8 max-w-xl">
-                From daily essentials to kitchen needs - find everything your home needs at VEL SUPER MARKET. 
-                Trusted by families in our community.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                <Link to="/products" className="w-full sm:w-auto">
-                  <Button size="lg" className="w-full sm:w-auto shadow-card">
-                    Shop Now
-                    <ArrowRight className="h-5 w-5" />
-                  </Button>
-                </Link>
-                <Link to="/products?category=daily-essentials" className="w-full sm:w-auto">
-                  <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                    Daily Essentials
-                  </Button>
-                </Link>
+            <div className="hero-layout animate-fade-in">
+              <div className="hero-left">
+                <span className="inline-block px-3 py-1 bg-accent text-accent-foreground text-sm font-medium rounded-full mb-4">
+                  🛒 Your Neighborhood Store
+                </span>
+                <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-4 leading-tight">
+                  Fresh Qualitied Products at
+                  <span className="text-primary"> Affordable Prices</span>
+                </h1>
+                <p className="text-muted-foreground text-lg mb-8 max-w-xl">
+                  From daily essentials to kitchen needs - find everything your home needs at VEL SUPER MARKET.
+                  Trusted by families in our community.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  <Link to="/products" className="w-full sm:w-auto">
+                    <Button size="lg" className="w-full sm:w-auto shadow-card">
+                      Shop Now
+                      <ArrowRight className="h-5 w-5" />
+                    </Button>
+                  </Link>
+                  <Link to="/products?category=daily-essentials" className="w-full sm:w-auto">
+                    <Button variant="outline" size="lg" className="w-full sm:w-auto">
+                      Daily Essentials
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              <div className="hero-right" aria-hidden="true">
+                <img src={groceryImage} alt="Grocery shelves in supermarket" className="hero-image" />
               </div>
             </div>
           </div>

@@ -1,4 +1,6 @@
 import { jsPDF } from "jspdf";
+import { getPaymentMethodLabel } from "@/lib/paymentMethod";
+import type { PaymentMethod } from "@/lib/storeApi";
 
 export interface ReceiptLineItem {
   name: string;
@@ -14,7 +16,7 @@ export interface ReceiptData {
   phone?: string;
   address?: string;
   pincode?: string;
-  paymentMethod?: string;
+  paymentMethod?: PaymentMethod;
   paymentStatus?: string;
   notes?: string;
   subtotal: number;
@@ -23,14 +25,10 @@ export interface ReceiptData {
   items: ReceiptLineItem[];
 }
 
-const currencyFormatter = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 2,
-});
-
-const formatCurrency = (value: number) =>
-  currencyFormatter.format(Number.isFinite(value) ? value : 0);
+const formatPrice = (value: number) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue.toFixed(2) : "0.00";
+};
 
 const drawPdfHeader = (doc: jsPDF, title: string) => {
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -79,7 +77,7 @@ export const downloadReceiptPdf = (receipt: ReceiptData) => {
   y += 16;
   drawPdfLabelValue(doc, y, "Status", receipt.status);
   y += 16;
-  drawPdfLabelValue(doc, y, "Payment Method", receipt.paymentMethod || "N/A");
+  drawPdfLabelValue(doc, y, "Payment Method", getPaymentMethodLabel(receipt.paymentMethod, "N/A"));
   y += 16;
   drawPdfLabelValue(doc, y, "Payment Status", receipt.paymentStatus || "N/A");
   y += 16;
@@ -120,8 +118,8 @@ export const downloadReceiptPdf = (receipt: ReceiptData) => {
   receipt.items.forEach((item) => {
     const name = item.name || "Product";
     const qty = String(item.quantity);
-    const unit = formatCurrency(item.unitPrice);
-    const lineTotal = formatCurrency(item.unitPrice * item.quantity);
+    const unit = formatPrice(item.unitPrice);
+    const lineTotal = formatPrice(item.unitPrice * item.quantity);
 
     const nameLines = doc.splitTextToSize(name, 290);
     const rowHeight = Math.max(16, nameLines.length * 12);
@@ -160,17 +158,17 @@ export const downloadReceiptPdf = (receipt: ReceiptData) => {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   doc.text("Subtotal", 430, y, { align: "right" });
-  doc.text(formatCurrency(receipt.subtotal), 555, y, { align: "right" });
+  doc.text(formatPrice(receipt.subtotal), 555, y, { align: "right" });
   y += 18;
   doc.text("Delivery", 430, y, { align: "right" });
-  doc.text(formatCurrency(receipt.deliveryCharge), 555, y, { align: "right" });
+  doc.text(formatPrice(receipt.deliveryCharge), 555, y, { align: "right" });
   y += 8;
   doc.line(430, y, 555, y);
   y += 16;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.text("Total", 430, y, { align: "right" });
-  doc.text(formatCurrency(receipt.total), 555, y, { align: "right" });
+  doc.text(formatPrice(receipt.total), 555, y, { align: "right" });
 
   const footerText = receipt.notes || "Thank you for shopping with us.";
   const footerLines = doc.splitTextToSize(footerText, 515);

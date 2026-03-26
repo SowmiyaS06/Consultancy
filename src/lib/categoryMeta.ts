@@ -6,92 +6,106 @@ type CategoryMeta = {
   description: string;
 };
 
-const CATEGORY_META_BY_ID: Record<string, CategoryMeta> = {
-  "daily-essentials": {
+const CATEGORY_META_BY_NAME: Record<string, CategoryMeta> = {
+  "Daily Essentials": {
     name: "Daily Essentials",
     icon: "🛒",
     description: "Rice, Dal, Oil & everyday needs",
   },
-  "snacks-treats": {
+  "Snacks & Treats": {
     name: "Snacks & Treats",
     icon: "🍪",
     description: "Biscuits, Chips & Chocolates",
   },
-  "personal-home": {
+  "Personal & Home Care": {
     name: "Personal & Home Care",
     icon: "🧴",
     description: "Soaps, Cleaners & Care products",
   },
-  "school-kids": {
+  "School & Kids": {
     name: "School & Kids",
-    icon: "📚",
+    icon: "🎒",
     description: "Stationery, Toys & School supplies",
   },
-  "kitchen-needs": {
+  "Kitchen Needs": {
     name: "Kitchen Needs",
     icon: "🍳",
     description: "Utensils & Kitchen essentials",
   },
-  "fresh-items": {
+  "Fresh Items": {
     name: "Fresh Items",
-    icon: "🧄",
+    icon: "🥕",
     description: "Fresh produce and essentials",
   },
-  "grocery-staples": {
+  "Grocery Staples": {
     name: "Grocery Staples",
     icon: "🌾",
     description: "Atta, rice, pulses and staples",
   },
-  "snacks-biscuits": {
+  "Snacks & Biscuits": {
     name: "Snacks & Biscuits",
-    icon: "🍿",
+    icon: "🍪",
     description: "Biscuits, chips and munchies",
   },
-  "dairy-bakery": {
+  "Dairy & Bakery": {
     name: "Dairy & Bakery",
     icon: "🥛",
     description: "Milk, bread and bakery items",
   },
-  beverages: {
+  Beverages: {
     name: "Beverages",
     icon: "🥤",
     description: "Tea, coffee, juices and soft drinks",
   },
-  "personal-care": {
+  "Personal Care": {
     name: "Personal Care",
     icon: "🧼",
     description: "Body care and hygiene products",
   },
-  "home-care": {
-    name: "Home Care",
+  "Home Care / Cleaning": {
+    name: "Home Care / Cleaning",
     icon: "🧹",
     description: "Cleaning and household supplies",
   },
-  "kitchen-essentials": {
-    name: "Kitchen Essentials",
-    icon: "🍽️",
-    description: "Cooking aids and kitchen utilities",
-  },
-  "baby-care": {
+  "Baby Care": {
     name: "Baby Care",
-    icon: "👶",
+    icon: "🍼",
     description: "Baby food, diapers and care products",
   },
-  "health-wellness": {
+  "Health & Wellness": {
     name: "Health & Wellness",
     icon: "💊",
     description: "Healthcare and wellness products",
   },
-  stationery: {
-    name: "Stationery",
-    icon: "✏️",
+  "Stationery & Misc": {
+    name: "Stationery & Misc",
+    icon: "📚",
     description: "School and office stationery",
   },
-  "pet-care": {
+  "Pet Care": {
     name: "Pet Care",
     icon: "🐾",
     description: "Food and care for pets",
   },
+};
+
+const LEGACY_CATEGORY_ALIAS: Record<string, string> = {
+  "daily-essentials": "Daily Essentials",
+  "snacks-treats": "Snacks & Treats",
+  "personal-home": "Personal & Home Care",
+  "school-kids": "School & Kids",
+  "kitchen-needs": "Kitchen Needs",
+  "fresh-items": "Fresh Items",
+  "grocery-staples": "Grocery Staples",
+  "snacks-biscuits": "Snacks & Biscuits",
+  "dairy-bakery": "Dairy & Bakery",
+  beverages: "Beverages",
+  "personal-care": "Personal Care",
+  "home-care": "Home Care / Cleaning",
+  "baby-care": "Baby Care",
+  "health-wellness": "Health & Wellness",
+  stationery: "Stationery & Misc",
+  "pet-care": "Pet Care",
 };
 
 const titleCaseFromId = (id: string) =>
@@ -101,8 +115,13 @@ const titleCaseFromId = (id: string) =>
     .join(" ");
 
 export const getCategoryMeta = (id: string, fallback?: CategoryMeta): CategoryMeta => {
-  if (CATEGORY_META_BY_ID[id]) {
-    return CATEGORY_META_BY_ID[id];
+  if (CATEGORY_META_BY_NAME[id]) {
+    return CATEGORY_META_BY_NAME[id];
+  }
+
+  const aliasName = LEGACY_CATEGORY_ALIAS[id];
+  if (aliasName && CATEGORY_META_BY_NAME[aliasName]) {
+    return CATEGORY_META_BY_NAME[aliasName];
   }
 
   if (fallback) {

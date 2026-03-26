@@ -10,6 +10,7 @@ import logo from "@/assets/logo.jpg";
 const navLinks = [
   { name: "Home", path: "/" },
   { name: "Products", path: "/products" },
+  { name: "Offers", path: "/offers" },
   { name: "Cart", path: "/cart" },
 ];
 
