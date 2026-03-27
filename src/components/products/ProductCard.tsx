@@ -52,18 +52,18 @@ const ProductCard = ({ product }: ProductCardProps) => {
       )}
 
       {/* Product Image */}
-      <div className="relative h-36 bg-accent/30 flex items-center justify-center overflow-hidden">
+      <div className="relative w-full aspect-square bg-gray-100 flex items-center justify-center overflow-hidden">
         {!imageFailed ? (
           <img
             src={currentImage}
             alt={product.name}
             loading="lazy"
-            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-300 ease-out"
             referrerPolicy="no-referrer"
             onError={handleImageError}
           />
         ) : (
-          <div className="text-5xl group-hover:scale-110 transition-transform duration-300">
+          <div className="text-6xl group-hover:scale-110 transition-transform duration-300 ease-out">
             {categoryEmoji}
           </div>
         )}
